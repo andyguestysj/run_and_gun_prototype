@@ -7,7 +7,7 @@ import pygame
 
 from . import settings
 from .level import Level
-from .player import Player
+from .characters.wizardbob import WizardBob
 from .utils import load_sound, asset_path, clamp
 
 
@@ -70,7 +70,7 @@ class Game:
     def load_level(self, index: int, level_file: str = "level1.csv") -> None:
         # You can expand this into a list of levels later.
         self.level = Level(level_file)
-        self.player = Player(self.level.player_spawn)
+        self.player = WizardBob(self.level.player_spawn)
         self.bullets.empty()
         self.boss_bullets.empty()
 

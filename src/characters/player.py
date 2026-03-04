@@ -1,41 +1,100 @@
 # player.py
-# Improved jump responsiveness:
-# - Jump buffer
-# - Coyote time
-# - Variable jump height (short hop)
+# Generic Player base class (movement, combat, health, animation selection).
+# Specific characters should subclass Player and provide sprite/animation config.
 
 from __future__ import annotations
 import pygame
-from .utils import load_image, slice_sprite_sheet_row
-from .weapon import Weapon
-from .animation import Animation
-from . import settings
+
+from ..utils import load_image, slice_sprite_sheet_row
+from ..weapons.weapon import Weapon
+from ..weapons.pistol import Pistol
+from ..animation import Animation
+from .. import settings
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos: tuple[int, int]):
+    def __init__(
+        self,
+        pos: tuple[int, int],
+        *,
+        sprite_sheet: str,
+        idle_row: int,
+        run_row: int,
+        jump_row: int,
+        idle_frames: int,
+        run_frames: int,
+        jump_frames: int,
+        frame_w: int = 32,
+        frame_h: int = 32,
+        stride_x: int = 32,
+        start_x: int = 0,
+        start_y: int = 0,
+        muzzle_dx: int = 16,
+        muzzle_dy: int = 4,
+        idle_frame_duration: float = 0.15,
+        run_frame_duration: float = 0.20,
+        jump_frame_duration: float = 0.12,
+        max_health: int = settings.PLAYER_MAX_HEALTH,
+        move_speed: float = settings.PLAYER_SPEED,
+        jump_speed: float = settings.JUMP_SPEED,
+        weapon: Weapon | None = None,
+    ):
         super().__init__()
-        
-        # Sprite sheet: row 4 idle, row 3 run, row 5 jump
-        
-        sheet = load_image("player_sheet.png")
-        self.anim_idle = slice_sprite_sheet_row(sheet, row=4, frame_w=32, frame_h=32, num_frames=6, stride_x=32, start_x=0, start_y=0, clamp=True)
-        self.anim_run  = slice_sprite_sheet_row(sheet, row=3, frame_w=32, frame_h=32, num_frames=8, stride_x=32, start_x=0, start_y=0, clamp=True)
-        self.anim_jump = slice_sprite_sheet_row(sheet, row=5, frame_w=32, frame_h=32, num_frames=8, stride_x=32, start_x=0, start_y=0, clamp=True)
+
+        # --- Character visuals / animation frames ---
+        sheet = load_image(sprite_sheet)
+
+        self.anim_idle = slice_sprite_sheet_row(
+            sheet,
+            row=idle_row,
+            frame_w=frame_w,
+            frame_h=frame_h,
+            num_frames=idle_frames,
+            stride_x=stride_x,
+            start_x=start_x,
+            start_y=start_y,
+            clamp=True,
+        )
+        self.anim_run = slice_sprite_sheet_row(
+            sheet,
+            row=run_row,
+            frame_w=frame_w,
+            frame_h=frame_h,
+            num_frames=run_frames,
+            stride_x=stride_x,
+            start_x=start_x,
+            start_y=start_y,
+            clamp=True,
+        )
+        self.anim_jump = slice_sprite_sheet_row(
+            sheet,
+            row=jump_row,
+            frame_w=frame_w,
+            frame_h=frame_h,
+            num_frames=jump_frames,
+            stride_x=stride_x,
+            start_x=start_x,
+            start_y=start_y,
+            clamp=True,
+        )
 
         # If idle has only 1 frame, you will never see animation.
-        # This warns early (common cause of "idle doesn't animate").
         if len(self.anim_idle) < 2:
-            print("[WARN] anim_idle has <2 frames. Check slice_sprite_sheet_row row/count arguments.")
+            print("[WARN] anim_idle has <2 frames. Check your sprite sheet row/frame count settings.")
 
         self.image = self.anim_idle[0]
         self.rect = self.image.get_rect(topleft=pos)
         self.pos = pygame.Vector2(self.rect.topleft)  # float position
-        
-        # Physics
+
+        # --- Physics / movement state ---
         self.vel = pygame.Vector2(0.0, 0.0)
         self.on_ground = False
         self.facing = 1
+
+        # Character tuning (per-character stats)
+        self.move_speed = float(move_speed)
+        self.jump_speed = float(jump_speed)
+        self.moving = False
 
         # Jump feel improvements
         self.jump_buffer_time = 0.12
@@ -44,17 +103,20 @@ class Player(pygame.sprite.Sprite):
         self.coyote_time = 0.10
         self.coyote_timer = 0.0
 
-        # Combat
-        self.weapon = Weapon()
-        self.health = settings.PLAYER_MAX_HEALTH
-        self.max_health = settings.PLAYER_MAX_HEALTH
+        # --- Combat ---
+        self.weapon = weapon if weapon is not None else Pistol()
+        self.health = max_health
+        self.max_health = max_health
         self.invuln_time = 0.0
 
-        # Animation (SLOW + readable by default)
-        # Increase frame_duration to slow down.
-        self.idle_anim = Animation(self.anim_idle, frame_duration=0.15, loop=True)  # very readable
-        self.run_anim  = Animation(self.anim_run,  frame_duration=0.20, loop=True)  # slowed run
-        self.jump_anim = Animation(self.anim_jump, frame_duration=0.12, loop=True)
+        # Muzzle offsets (where bullets spawn relative to player)
+        self.muzzle_dx = muzzle_dx
+        self.muzzle_dy = muzzle_dy
+
+        # --- Animation controllers ---
+        self.idle_anim = Animation(self.anim_idle, frame_duration=idle_frame_duration, loop=True)
+        self.run_anim = Animation(self.anim_run, frame_duration=run_frame_duration, loop=True)
+        self.jump_anim = Animation(self.anim_jump, frame_duration=jump_frame_duration, loop=True)
 
         self.current_anim = self.idle_anim
 
@@ -82,15 +144,15 @@ class Player(pygame.sprite.Sprite):
 
     def handle_input(self, keys: pygame.key.ScancodeWrapper) -> None:
         self.vel.x = 0.0
-
         self.moving = False
+
         if keys[pygame.K_a]:
-            self.vel.x -= settings.PLAYER_SPEED
+            self.vel.x -= self.move_speed
             self.facing = -1
             self.moving = True
 
         if keys[pygame.K_d]:
-            self.vel.x += settings.PLAYER_SPEED
+            self.vel.x += self.move_speed
             self.facing = 1
             self.moving = True
 
@@ -105,8 +167,8 @@ class Player(pygame.sprite.Sprite):
 
     def try_shoot(self, bullets_group: pygame.sprite.Group) -> bool:
         muzzle = pygame.Vector2(
-            self.rect.centerx + 16 * self.facing,
-            self.rect.centery + 4
+            self.rect.centerx + self.muzzle_dx * self.facing,
+            self.rect.centery + self.muzzle_dy,
         )
         before = len(bullets_group)
         self.weapon.shoot(bullets_group, muzzle, self.facing)
@@ -161,7 +223,7 @@ class Player(pygame.sprite.Sprite):
 
             self.pos.y = self.rect.y  # keep float in sync after collision
 
-        # --- Ground probe (stabilises grounding when perfectly still) ---
+        # Ground probe (stabilises grounding when perfectly still)
         if not self.on_ground:
             probe = self.rect.move(0, 1)
             if level.get_solid_hits(probe):
@@ -174,7 +236,7 @@ class Player(pygame.sprite.Sprite):
         # Buffered jump
         can_jump = self.on_ground or self.coyote_timer > 0.0
         if self.jump_buffer > 0 and can_jump:
-            self.vel.y = -settings.JUMP_SPEED
+            self.vel.y = -self.jump_speed
             self.on_ground = False
             self.coyote_timer = 0.0
             self.jump_buffer = 0.0
@@ -196,7 +258,6 @@ class Player(pygame.sprite.Sprite):
         if self.current_anim is not anim:
             self.current_anim = anim
             self.current_anim.reset()
-            
 
         self.current_anim.update(dt, speed=speed)
 
