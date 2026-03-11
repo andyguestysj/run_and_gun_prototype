@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Run Game (Module Mode)",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "src.main",
             "cwd": "${workspaceFolder}",

@@ -10,10 +10,12 @@
 from __future__ import annotations
 import csv
 import pygame
+
+from src.pickups import pickup
 from .utils import asset_path, load_image
 from . import settings
 from .enemies import NormalEnemy, ShooterEnemy, BossEnemy
-from .pickup import PickUp
+from .pickups import create_pickup
 
 
 class Level:
@@ -155,8 +157,9 @@ class Level:
                 # ------------------------
                 elif tile_id == self.PICKUP_HEALTH:
                     pickup_height = 32
-                    spawn_y = world_y - (pickup_height - tile_size)
-                    self.pickups.add(PickUp((world_x, spawn_y), kind="health"))
+                    spawn_y = world_y - (pickup_height - tile_size)                    
+                    pickup = create_pickup("health", world_x, spawn_y)
+                    self.pickups.add(pickup)
 
                 # ------------------------
                 # BOSS SPAWN (64x64 sprite)
@@ -199,7 +202,7 @@ class Level:
             self.boss.update(dt, self, player, boss_bullets)
 
         for p in list(self.pickups):
-            p.update(dt)
+            p.update(dt*1000)
 
         # Bullet hits
         for b in list(bullets):

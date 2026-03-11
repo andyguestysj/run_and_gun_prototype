@@ -48,7 +48,7 @@ python -m venv .venv
 # macOS/Linux: source .venv/bin/activate
 .venv\Scripts\activate
 
-
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python -m src.main
 ```

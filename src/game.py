@@ -81,7 +81,7 @@ class Game:
     # ------------------ Main loop ------------------
     def run(self) -> None:
         while self.running:
-            dt = self.clock.tick(settings.FPS) / 1000.0
+            dt = self.clock.tick(settings.FPS) / 1000.0  # convert to seconds
             dt = min(dt, 1 / 30)  # clamp if debugging causes huge dt
 
             self.handle_events()
