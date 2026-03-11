@@ -9,14 +9,21 @@
 
 from __future__ import annotations
 import csv
+import os
+from PIL.ImageChops import screen
 import pygame
 
-from src.pickups import pickup
 from .utils import asset_path, load_image
 from . import settings
 from .enemies import NormalEnemy, ShooterEnemy, BossEnemy
 from .pickups import create_pickup
 
+class BackgroundLayer:
+    def __init__(self, image, parallax_factor=0.5, y_offset=0):
+        self.image = image
+        self.parallax_factor = parallax_factor
+        self.y_offset = y_offset
+        
 
 class Level:
     # --- Tile IDs (two-digit in CSV, but int in code) ---
@@ -39,6 +46,10 @@ class Level:
 
     def __init__(self, csv_name: str):
         self.csv_name = csv_name
+        print(f"Loading level from {csv_name}.csv...")
+        self.background_layers = []
+        
+        self.load_backgrounds()
 
         # Load tilesheet
         self.tilesheet = load_image("tileset.png")
@@ -84,6 +95,8 @@ class Level:
         self.pixel_height = 0
 
         self.load_csv(csv_name)
+        
+        
 
     @staticmethod
     def slice_tilesheet(sheet: pygame.Surface, tile_size: int) -> list[pygame.Surface]:
@@ -101,7 +114,7 @@ class Level:
         return tiles
 
     def load_csv(self, csv_name: str) -> None:
-        path = asset_path("levels", csv_name)
+        path = asset_path("levels", csv_name + ".csv")
         with open(path, newline="", encoding="utf-8") as f:
             reader = csv.reader(f)
             self.grid = [[int(cell.strip()) for cell in row] for row in reader]
@@ -217,6 +230,12 @@ class Level:
                 b.kill()
 
     def draw(self, surface: pygame.Surface, camera_x: float, camera_y: float) -> None:
+        # draw background layers
+        screen_width = surface.get_width()
+        screen_height = surface.get_height()
+
+        self.draw_backgrounds(surface, camera_x, screen_width, screen_height)
+        
         # Draw tiles by reading the grid (so you can have multiple visual tiles)
         # Simple version: draw everything in draw_ids.
         for gy in range(self.height):
@@ -241,4 +260,52 @@ class Level:
                 (80, 240, 180),
                 (self.exit_rect.x - camera_x, self.exit_rect.y - camera_y, self.exit_rect.w, self.exit_rect.h),
                 2,
+            )
+        
+    def load_background_layer(self, image_path, parallax_factor=0.5, y_offset=0, scale=None):
+        image = pygame.image.load(image_path).convert_alpha()
+
+        if scale is not None:
+            image = pygame.transform.scale(image, scale)
+
+        self.background_layers.append(
+            BackgroundLayer(image, parallax_factor, y_offset)
+        )
+        
+    def draw_backgrounds(self, screen, camera_x, screen_width, screen_height):
+        
+        for layer in self.background_layers:
+            image = layer.image
+            image_width = image.get_width()
+            image_height = image.get_height()
+
+            # Parallax offset
+            x = (camera_x * layer.parallax_factor)
+
+            # Wrap the image horizontally so it repeats
+            start_x = int(x) % image_width
+            draw_x = -start_x
+
+            while draw_x < screen_width:
+                screen.blit(image, (draw_x, layer.y_offset))
+                draw_x += image_width
+                
+    def load_backgrounds(self):
+        layers = [
+            (self.csv_name + "bg1.png", 0.1),
+            (self.csv_name + "bg2.png", 0.3),
+            (self.csv_name + "bg3.png", 0.5),
+        ]
+
+        for filename, parallax in layers:
+            path = asset_path("levels", filename)
+            print("Trying background:", path)
+
+            if not os.path.exists(path):
+                print("Missing background:", path)
+                continue
+
+            image = pygame.image.load(path).convert_alpha()
+            self.background_layers.append(
+                BackgroundLayer(image, parallax, 0)
             )

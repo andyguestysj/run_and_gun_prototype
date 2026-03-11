@@ -65,9 +65,9 @@ class Game:
         self.boss_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
 
-        self.load_level(self.level_index, f"level{self.level_index}.csv")
+        self.load_level(self.level_index, f"level{self.level_index}")
 
-    def load_level(self, index: int, level_file: str = "level1.csv") -> None:
+    def load_level(self, index: int, level_file: str = "level1") -> None:
         # You can expand this into a list of levels later.
         self.level = Level(level_file)
         self.player = WizardBob(self.level.player_spawn)
