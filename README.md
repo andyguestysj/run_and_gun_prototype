@@ -26,6 +26,7 @@ You can remove it from your local (and then remote) repository with
 
 ```bash
 git rm -r --cached __pycache__
+git rm -r --cached src\weapons\__pycache__
 git commit -m "Remove __pycache__ from repository"
 git push 
 ```

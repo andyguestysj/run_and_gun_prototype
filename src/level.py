@@ -10,7 +10,6 @@
 from __future__ import annotations
 import csv
 import os
-from PIL.ImageChops import screen
 import pygame
 
 from .utils import asset_path, load_image
