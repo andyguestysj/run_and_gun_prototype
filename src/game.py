@@ -59,11 +59,13 @@ class Game:
         # World content
         self.level_index = 1
         self.level: Level | None = None
-        self.player: Player | None = None
+        self.player = None
 
         self.bullets = pygame.sprite.Group()
         self.boss_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
+
+        self.debug_draw_tile_regions = False
 
         self.load_level(self.level_index, f"level{self.level_index}")
 
@@ -73,6 +75,7 @@ class Game:
         self.player = WizardBob(self.level.player_spawn)
         self.bullets.empty()
         self.boss_bullets.empty()
+        self.enemy_bullets.empty()
 
         # Reset camera so the start feels consistent
         self.camera_x = 0.0
@@ -100,6 +103,9 @@ class Game:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
 
+                if event.key == pygame.K_F3:
+                    self.debug_draw_tile_regions = not self.debug_draw_tile_regions
+
                 if self.state == "START":
                     if event.key == pygame.K_RETURN:
                         self.state = "PLAYING"
@@ -116,7 +122,7 @@ class Game:
 
                 if self.state == "PLAYING":
                     # self.player is guaranteed in PLAYING
-                    if event.key == pygame.K_w:
+                    if event.key == pygame.K_w and not self.player.on_ladder:
                         self.player.queue_jump()
 
                     if event.key == pygame.K_SPACE:
@@ -154,6 +160,15 @@ class Game:
 
         # Update level entities and bullet hits
         self.level.update(dt, self.player, self.bullets, self.boss_bullets, self.enemy_bullets)
+
+        # --- Player vs hazard tiles
+        hazard_hits = self.level.get_hazard_hits(self.player.rect)
+        if hazard_hits:
+            hazard_damage = max(int(h.get("damage", settings.ENEMY_DAMAGE)) for h in hazard_hits)
+            was_vulnerable = self.player.invuln_time <= 0.0
+            self.player.take_damage(hazard_damage)
+            if was_vulnerable and self.player.invuln_time > 0.0 and not settings.SOUND_OFF:
+                self.sfx_hurt.play()
 
         # --- Player vs pickups
         hit_pickups = pygame.sprite.spritecollide(self.player, self.level.pickups, dokill=True)
@@ -238,6 +253,9 @@ class Game:
         # World / tiles
         self.level.draw(self.world, self.camera_x, self.camera_y)
 
+        if self.debug_draw_tile_regions:
+            self.level.draw_debug_overlay(self.world, self.camera_x, self.camera_y)
+
         # Entities
         # (Draw order: pickups -> enemies -> boss -> bullets -> player)
         for p in self.level.pickups:
@@ -299,6 +317,10 @@ class Game:
         pygame.draw.rect(target, (80, 220, 120), (x, y, int(w * hp_ratio), h))
         txt = self.font.render(f"HP: {self.player.health}/{self.player.max_health}", True, (230, 230, 230))
         target.blit(txt, (x, y + 22))
+
+        if self.debug_draw_tile_regions:
+            debug_txt = self.font.render("F3 Debug: solid green, hazard red, ladder blue", True, (240, 230, 140))
+            target.blit(debug_txt, (20, 54))
 
         # Boss health (when alive)
         if self.level.boss and self.level.boss.alive():

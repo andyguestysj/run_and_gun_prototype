@@ -18,7 +18,7 @@ class Pickup(pygame.sprite.Sprite):
     FRAME_WIDTH = 32
     FRAME_HEIGHT = 32
     FRAME_COUNT = 2
-    ANIMATION_SPEED = 200  # milliseconds per frame
+    ANIMATION_SPEED = 0.20  # seconds per frame
 
     def __init__(self, x, y):
         super().__init__()
@@ -71,12 +71,12 @@ class Pickup(pygame.sprite.Sprite):
         """
         Animate between the pickup frames.
 
-        dt should be delta time in milliseconds.
+        dt should be delta time in seconds.
         """
         self.animation_timer += dt
 
         if self.animation_timer >= self.ANIMATION_SPEED:
-            self.animation_timer = 0
+            self.animation_timer -= self.ANIMATION_SPEED
             self.current_frame = (self.current_frame + 1) % self.FRAME_COUNT
             self.image = self.frames[self.current_frame]
 

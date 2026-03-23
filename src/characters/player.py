@@ -78,51 +78,44 @@ class Player(pygame.sprite.Sprite):
             clamp=True,
         )
 
-        # If idle has only 1 frame, you will never see animation.
         if len(self.anim_idle) < 2:
             print("[WARN] anim_idle has <2 frames. Check your sprite sheet row/frame count settings.")
 
         self.image = self.anim_idle[0]
         self.rect = self.image.get_rect(topleft=pos)
-        self.pos = pygame.Vector2(self.rect.topleft)  # float position
+        self.pos = pygame.Vector2(self.rect.topleft)
 
         # --- Physics / movement state ---
         self.vel = pygame.Vector2(0.0, 0.0)
         self.on_ground = False
+        self.on_ladder = False
         self.facing = 1
+        self.climb_intent = 0
 
-        # Character tuning (per-character stats)
         self.move_speed = float(move_speed)
         self.jump_speed = float(jump_speed)
+        self.ladder_speed = float(settings.LADDER_SPEED)
         self.moving = False
 
-        # Jump feel improvements
         self.jump_buffer_time = 0.12
         self.jump_buffer = 0.0
 
         self.coyote_time = 0.10
         self.coyote_timer = 0.0
 
-        # --- Combat ---
         self.weapon = weapon if weapon is not None else Pistol()
         self.health = max_health
         self.max_health = max_health
         self.invuln_time = 0.0
 
-        # Muzzle offsets (where bullets spawn relative to player)
         self.muzzle_dx = muzzle_dx
         self.muzzle_dy = muzzle_dy
 
-        # --- Animation controllers ---
         self.idle_anim = Animation(self.anim_idle, frame_duration=idle_frame_duration, loop=True)
         self.run_anim = Animation(self.anim_run, frame_duration=run_frame_duration, loop=True)
         self.jump_anim = Animation(self.anim_jump, frame_duration=jump_frame_duration, loop=True)
 
         self.current_anim = self.idle_anim
-
-    # --------------------------
-    # Health
-    # --------------------------
 
     def heal(self, amount: int) -> None:
         self.health = min(self.max_health, self.health + amount)
@@ -138,13 +131,10 @@ class Player(pygame.sprite.Sprite):
     def is_dead(self) -> bool:
         return self.health <= 0
 
-    # --------------------------
-    # Input
-    # --------------------------
-
     def handle_input(self, keys: pygame.key.ScancodeWrapper) -> None:
         self.vel.x = 0.0
         self.moving = False
+        self.climb_intent = 0
 
         if keys[pygame.K_a]:
             self.vel.x -= self.move_speed
@@ -156,12 +146,19 @@ class Player(pygame.sprite.Sprite):
             self.facing = 1
             self.moving = True
 
+        if keys[pygame.K_w]:
+            self.climb_intent -= 1
+        if keys[pygame.K_s]:
+            self.climb_intent += 1
+
     def queue_jump(self) -> None:
         """Called on key press. Stores jump for short time."""
         self.jump_buffer = self.jump_buffer_time
 
     def cut_jump(self) -> None:
         """Called on key release for variable jump height."""
+        if self.on_ladder:
+            return
         if self.vel.y < 0:
             self.vel.y *= 0.45
 
@@ -174,12 +171,7 @@ class Player(pygame.sprite.Sprite):
         self.weapon.shoot(bullets_group, muzzle, self.facing)
         return len(bullets_group) > before
 
-    # --------------------------
-    # Update
-    # --------------------------
-
     def update(self, dt: float, level) -> None:
-        # Timers
         if self.invuln_time > 0:
             self.invuln_time = max(0.0, self.invuln_time - dt)
 
@@ -191,10 +183,19 @@ class Player(pygame.sprite.Sprite):
 
         self.weapon.update(dt)
 
-        # Gravity
-        self.vel.y += settings.GRAVITY * dt
+        touching_ladder = level.rect_overlaps_ladder(self.rect)
+        self.on_ladder = touching_ladder and self.climb_intent != 0
 
-        # Horizontal movement (float)
+        if self.on_ladder:
+            self.vel.y = self.climb_intent * self.ladder_speed
+            if self.jump_buffer > 0:
+                self.on_ladder = False
+                self.vel.y = -self.jump_speed
+                self.jump_buffer = 0.0
+        else:
+            self.vel.y += settings.GRAVITY * dt
+
+        # Horizontal movement
         self.pos.x += self.vel.x * dt
         self.rect.x = round(self.pos.x)
 
@@ -204,9 +205,9 @@ class Player(pygame.sprite.Sprite):
                 self.rect.right = tile_rect.left
             elif self.vel.x < 0:
                 self.rect.left = tile_rect.right
-            self.pos.x = self.rect.x  # keep float in sync after collision
+            self.pos.x = self.rect.x
 
-        # Vertical movement (float)
+        # Vertical movement
         self.pos.y += self.vel.y * dt
         self.rect.y = round(self.pos.y)
 
@@ -220,28 +221,26 @@ class Player(pygame.sprite.Sprite):
             elif self.vel.y < 0:
                 self.rect.top = tile_rect.bottom
                 self.vel.y = 0
+            self.pos.y = self.rect.y
 
-            self.pos.y = self.rect.y  # keep float in sync after collision
-
-        # Ground probe (stabilises grounding when perfectly still)
-        if not self.on_ground:
+        if not self.on_ladder and not self.on_ground:
             probe = self.rect.move(0, 1)
             if level.get_solid_hits(probe):
                 self.on_ground = True
 
-        # Coyote time reset
         if self.on_ground:
             self.coyote_timer = self.coyote_time
 
-        # Buffered jump
-        can_jump = self.on_ground or self.coyote_timer > 0.0
+        can_jump = (self.on_ground or self.coyote_timer > 0.0) and not self.on_ladder
         if self.jump_buffer > 0 and can_jump:
             self.vel.y = -self.jump_speed
             self.on_ground = False
             self.coyote_timer = 0.0
             self.jump_buffer = 0.0
 
-        # Animation selection
+        if self.on_ladder:
+            self.on_ground = False
+
         if not self.on_ground:
             self.set_anim(self.jump_anim, dt)
         elif self.moving:
@@ -249,12 +248,7 @@ class Player(pygame.sprite.Sprite):
         else:
             self.set_anim(self.idle_anim, dt)
 
-    # --------------------------
-    # Animation helper
-    # --------------------------
-
     def set_anim(self, anim: Animation, dt: float, speed: float = 1.0) -> None:
-        # Only reset when the animation OBJECT changes
         if self.current_anim is not anim:
             self.current_anim = anim
             self.current_anim.reset()

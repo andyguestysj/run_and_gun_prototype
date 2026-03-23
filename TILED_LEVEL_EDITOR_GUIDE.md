@@ -1,17 +1,15 @@
-# Tiled Level Editor Guide (Updated)
+# Tiled Level Editor Guide (Property-Driven Version)
 
 ## Overview
 
-This project now uses **Tiled JSON maps (`.tmj`)** for level creation.
+This project now uses **Tiled JSON maps (`.tmj`)** with a **property-driven level system**.
 
-Each level can:
+Levels are defined using:
 
-* use its own tileset(s)
-* mix multiple tilesets
-* define gameplay using object layers
-* separate visuals and collision cleanly
+* **tile properties** (for terrain behaviour)
+* **object layer** (for gameplay entities)
 
-This replaces the older CSV-only system (which is still supported for legacy maps).
+❌ There is **no collision layer anymore**
 
 ---
 
@@ -23,7 +21,7 @@ Levels are stored in:
 assets/levels/
 ```
 
-Each level should follow this naming:
+Example:
 
 ```
 level1.tmj
@@ -42,21 +40,19 @@ assets/images/
 
 ## Creating a New Map in Tiled
 
-### 1. New Map Settings
+### Map Settings
 
 * Orientation: **Orthogonal**
 * Tile size: **16 × 16**
-* Map size: your choice (e.g. 100 × 20)
+* Map size: your choice
 * Tile layer format: **CSV (internal)**
 
 ---
 
-### 2. Add a Tileset
-
-In Tiled:
+## Adding a Tileset
 
 1. **Map → New Tileset**
-2. Select image:
+2. Select:
 
    ```
    assets/images/tileset.png
@@ -67,21 +63,18 @@ In Tiled:
    * Margin: **0**
    * Spacing: **0**
 
-You can also:
-
-* create your own tileset
-* use multiple tilesets in one level
+✔ You can use multiple tilesets
+✔ You can create your own tilesets
 
 ---
 
 ## Required Layers
 
-### Tile Layers
+### Tile Layer
 
-| Layer Name  | Purpose                             |
-| ----------- | ----------------------------------- |
-| `ground`    | Visual tiles (what the player sees) |
-| `collision` | Solid tiles (for physics)           |
+| Layer Name | Purpose                              |
+| ---------- | ------------------------------------ |
+| `ground`   | Visuals + collision + tile behaviour |
 
 ---
 
@@ -93,11 +86,87 @@ You can also:
 
 ---
 
-## Placing Objects
+## Tile Properties (Core System)
 
-Use **Insert → Insert Tile / Point Object**
+Instead of a collision layer, tiles define behaviour.
 
-Name objects exactly as follows:
+### Solid Tiles (collision)
+
+```
+solid = true
+```
+
+Used for:
+
+* ground
+* platforms
+* walls
+
+---
+
+### Hazard Tiles (damage)
+
+```
+hazard = true
+damage = 20
+```
+
+OR:
+
+```
+danger = true
+damage = 20
+```
+
+Used for:
+
+* spikes
+* lava
+* traps
+
+---
+
+### Ladder Tiles (climbing)
+
+```
+ladder = true
+```
+
+Used for:
+
+* ladders
+* climbable ropes
+
+---
+
+## How to Add Tile Properties in Tiled
+
+1. Open **Tilesets panel**
+2. Click your tileset
+3. Click a tile
+4. Open **Properties panel**
+5. Click **+**
+6. Add property:
+
+Example:
+
+```
+Name: solid
+Type: bool
+Value: true
+```
+
+---
+
+## Object Layer Setup
+
+Create a layer:
+
+```
+objects
+```
+
+Use **point objects** and name them exactly:
 
 ### Player
 
@@ -121,7 +190,7 @@ ammo
 shield
 ```
 
-### Level Exit
+### Exit
 
 ```
 exit
@@ -132,56 +201,14 @@ exit
 ## Object Placement Rules
 
 * Place objects where their **feet touch the ground**
-* The game adjusts positioning automatically
-* Use **point objects** (simplest and recommended)
-
----
-
-## Collision Layer Rules
-
-* Any tile placed in the `collision` layer = **solid**
-* Empty tiles = **non-solid**
-* The actual tile graphic does not matter
-
----
-
-## Tilesets (Important)
-
-This version of the game:
-
-✔ supports **multiple tilesets per level**
-✔ supports **different tilesets for different levels**
-✔ supports **external `.tsx` tilesets**
-
-### How it works
-
-Tiled assigns each tileset a `firstgid`.
-
-The game automatically:
-
-* detects which tileset a tile belongs to
-* selects the correct image
-* draws it correctly
-
----
-
-## Exporting the Map
-
-Save your map as:
-
-```
-assets/levels/level_name.tmj
-```
-
-Do NOT export as CSV.
+* Use **point objects**
+* Names are **case-sensitive**
 
 ---
 
 ## Background Layers
 
-Backgrounds are still handled separately.
-
-Name them like:
+Backgrounds are separate images:
 
 ```
 level1bg1.png
@@ -189,80 +216,133 @@ level1bg2.png
 level1bg3.png
 ```
 
-These create the parallax effect.
+These create parallax scrolling.
+
+---
+
+## Recommended Workflow
+
+1. Paint terrain in `ground`
+2. Ensure correct tile properties:
+
+   * ground → `solid=true`
+   * spikes → `hazard=true`
+   * ladder → `ladder=true`
+3. Place entities in `objects`
+4. Save as `.tmj`
+5. Run the game
 
 ---
 
 ## Common Mistakes
 
+### ❌ Player falls through ground
+
+Cause:
+
+```
+solid property missing
+```
+
+Fix:
+
+```
+solid = true
+```
+
+---
+
+### ❌ Hazards do nothing
+
+Cause:
+
+```
+hazard property missing or misspelled
+```
+
+---
+
+### ❌ Ladder does not work
+
+Cause:
+
+```
+ladder property missing
+```
+
+---
+
 ### ❌ Wrong layer names
 
-Must match exactly:
+Must be exactly:
 
 ```
 ground
-collision
 objects
 ```
 
 ---
 
-### ❌ Wrong object names
+### ❌ Adding properties to wrong thing
 
-Names are case-sensitive and must match exactly.
+Make sure:
 
----
-
-### ❌ Using CSV export
-
-The game expects `.tmj` (JSON), not CSV.
+* you select a **tile in the tileset**
+* NOT the map or layer
 
 ---
 
-### ❌ Tileset path issues
+## Debug Tip
 
-If using external `.tsx`:
+If something is not working:
 
-* keep relative paths valid
-* usually safest to keep tilesets in `assets/images`
-
----
-
-## Limitations (Current Version)
-
-* Tile flipping/rotation from Tiled is ignored
-* Animated tiles from Tiled are not yet supported
+* check tile properties spelling
+* check tile is actually used in map
+* check `.tmj` file contains properties
 
 ---
 
-## Recommended Student Workflow
+## Example Tile Setup
 
-1. Open template map
-2. Paint level in `ground`
-3. Paint collision in `collision`
-4. Add objects in `objects`
-5. Save as `.tmj`
-6. Run the game
+| Tile   | Properties                     |
+| ------ | ------------------------------ |
+| Grass  | `solid = true`                 |
+| Stone  | `solid = true`                 |
+| Spikes | `hazard = true`, `damage = 20` |
+| Ladder | `ladder = true`                |
 
 ---
 
-## Extension Ideas (for students)
+## Teaching Benefits
 
-* Create your own tileset
-* Mix multiple tilesets in one level
-* Design different themed levels (forest, cave, sci-fi)
-* Experiment with level flow and difficulty
+This system demonstrates:
+
+* data-driven design
+* separation of content and code
+* reusable game systems
+* professional level design workflows
+
+---
+
+## Extension Ideas
+
+Students can extend this system with:
+
+* `slippery = true` (ice physics)
+* `bounce = 20` (jump pads)
+* `slow = true` (water)
+* custom mechanics
 
 ---
 
 ## Summary
 
-This system separates:
+The level system now uses:
 
-* **Visuals → ground layer**
-* **Physics → collision layer**
-* **Gameplay → object layer**
+* **ground layer → everything tile-based**
+* **object layer → gameplay entities**
+* **tile properties → behaviour**
 
-This is closer to how real games and engines structure levels.
+This is a clean, flexible, and industry-relevant workflow.
 
 ---
