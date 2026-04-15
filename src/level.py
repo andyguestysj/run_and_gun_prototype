@@ -194,7 +194,7 @@ class Level:
         json_path = asset_path("levels", level_name + ".json")
         csv_path = asset_path("levels", level_name + ".csv")
 
-        if os.path.exists(tmj_path):
+        if os.path.exists(tmj_path):            
             self.load_tiled_map(tmj_path)
         elif os.path.exists(json_path):
             self.load_tiled_map(json_path)
@@ -436,7 +436,7 @@ class Level:
                 rect = pygame.Rect(gx * tile_size, gy * tile_size, tile_size, tile_size)
 
                 if props.get("solid", False):
-                    self.solid_rects.append(rect)
+                    self.solid_rects.append(rect)                    
 
                 if props.get("hazard", False) or props.get("danger", False):
                     damage = int(props.get("damage", 10))

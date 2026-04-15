@@ -57,7 +57,7 @@ class Game:
         self.camera_y = 0.0
 
         # World content
-        self.level_index = 1
+        self.level_index = 2
         self.level: Level | None = None
         self.player = None
 

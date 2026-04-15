@@ -1,0 +1,9 @@
+{
+  "label": "Run Program",
+  "type": "shell",
+  "command": "go",
+  "args": [
+    "run",
+    "."
+  ]
+}

@@ -131,8 +131,20 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":1312,
-                 "y":80
+                 "x":1311.5,
+                 "y":98
+                }, 
+                {
+                 "height":0,
+                 "id":10,
+                 "name":"enemy_shooter",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":695.333333333333,
+                 "y":101.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -140,8 +152,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":4,
- "nextobjectid":10,
+ "nextlayerid":5,
+ "nextobjectid":14,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.0",
