@@ -19,8 +19,8 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 709.75,
-                "y": 180.25
+                "x": 710,
+                "y": 180
             }
         },
         "level2.tmj": {
@@ -28,10 +28,10 @@
                 2
             ],
             "scale": 5.5,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 88.81818181818181,
-                "y": 109.54545454545456
+                "x": 206.27272727272728,
+                "y": 103.81818181818181
             }
         },
         "level2.tmj#forest-land-tiles": {
@@ -78,9 +78,9 @@
     "project": "RunNGun.tiled-project",
     "property.type": "bool",
     "recentFiles": [
+        "teaching_tileset.tsx",
         "level1.tmj",
         "level2.tmj",
-        "teaching_tileset.tsx",
         "forest-land-tiles.tsx",
         "tiled2.tmj",
         "level2.tmx"

@@ -100,6 +100,7 @@ class Level:
         self.tilesets: list[dict[str, Any]] = []
         self.default_tiles: list[pygame.Surface] = []
         self.tile_properties_by_gid: dict[int, dict[str, Any]] = {}
+        self.tile_layers: list[list[list[int]]] = []
 
         # Legacy CSV support only
         self.tilesheet = load_image("tileset.png")
@@ -209,6 +210,7 @@ class Level:
         self.solid_rects.clear()
         self.hazard_tiles.clear()
         self.ladder_rects.clear()
+        self.tile_layers.clear()
         self.enemies.empty()
         self.pickups.empty()
         self.boss = None
@@ -256,6 +258,8 @@ class Level:
                 elif tile_id == self.SHOOTER_ENEMY_SPAWN:
                     self.enemies.add(ShooterEnemy((world_x, world_y - (32 - tile_size))))
 
+        self.tile_layers = [self.grid]
+
     # ------------------------------------------------------------------
     # Tiled JSON / TSX loader
     # ------------------------------------------------------------------
@@ -281,14 +285,17 @@ class Level:
         self.load_tiled_tilesets(data, map_dir)
 
         ground_layer = None
+        raw_tile_layers: list[dict[str, Any]] = []
         object_layers: list[dict[str, Any]] = []
 
         for layer in data.get("layers", []):
             layer_type = layer.get("type")
             layer_name = layer.get("name", "")
 
-            if layer_type == "tilelayer" and layer_name == "ground":
-                ground_layer = layer
+            if layer_type == "tilelayer":
+                raw_tile_layers.append(layer)
+                if layer_name == "ground":
+                    ground_layer = layer
             elif layer_type == "objectgroup":
                 object_layers.append(layer)
 
@@ -296,6 +303,7 @@ class Level:
             raise ValueError("Tiled map is missing a tile layer named 'ground'.")
 
         self.grid = self.decode_tile_layer_data(ground_layer)
+        self.tile_layers = [self.decode_tile_layer_data(l) for l in raw_tile_layers]
         self.build_property_regions_from_ground()
         self.load_object_layers(object_layers)
 
@@ -553,23 +561,24 @@ class Level:
         screen_height = surface.get_height()
         self.draw_backgrounds(surface, camera_x, screen_width, screen_height)
 
-        for gy in range(self.height):
-            for gx in range(self.width):
-                gid = self.grid[gy][gx]
-                img = None
+        for grid in self.tile_layers:
+            for gy in range(self.height):
+                for gx in range(self.width):
+                    gid = grid[gy][gx]
+                    img = None
 
-                if self.tilesets:
-                    img = self.get_tile_image(gid)
-                else:
-                    if gid in self.legacy_draw_ids:
+                    if self.tilesets:
                         img = self.get_tile_image(gid)
+                    else:
+                        if gid in self.legacy_draw_ids:
+                            img = self.get_tile_image(gid)
 
-                if img is None:
-                    continue
+                    if img is None:
+                        continue
 
-                x = gx * settings.TILE_SIZE - camera_x
-                y = gy * settings.TILE_SIZE - camera_y
-                surface.blit(img, (x, y))
+                    x = gx * settings.TILE_SIZE - camera_x
+                    y = gy * settings.TILE_SIZE - camera_y
+                    surface.blit(img, (x, y))
 
         if self.exit_rect:
             pygame.draw.rect(
